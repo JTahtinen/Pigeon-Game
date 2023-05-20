@@ -16,22 +16,31 @@ public class PigeonController : MonoBehaviour
     public float mouseSensitivity = 2f;
     public float upLimit = -50;
     public float downLimit = 50;
+
+    public GameObject hookPrefab; 
+    public float grappleMaxDistance = 100;
     
     public float lyft = 0.9f;
     // gravity
     private float gravity = 9.81f;
     private float verticalSpeed = 0;
 
+    private bool isHookInstantiated = false;
+
 
     private bool isWalking = false;
     private bool isFlying = false;
     private bool isJumping = false;
+
+    private bool isHookFired = false;
 
     public GameObject Target;
     private Transform aimTarget;
 
     private float _aimTargetYaw;
     private float _aimTargetPitch;
+
+    private GameObject hook;
     
     // Start is called before the first frame update
     void Start()
@@ -42,6 +51,7 @@ public class PigeonController : MonoBehaviour
     void Update()
     {
         Move();
+        Fire();
         Rotate();
         MoveCamera();
         SetAnimate();
@@ -81,6 +91,12 @@ public class PigeonController : MonoBehaviour
         cameraHolder.transform.SetLocalPositionAndRotation(aimTarget.localPosition - aimTarget.forward * 8 + transform.up * 2, aimTarget.localRotation);
         
         cameraHolder.transform.LookAt(aimTarget, Vector3.up);
+        
+        if (cameraHolder.transform.position.y < transform.position.y + 0.1f)
+        {
+            
+            cameraHolder.transform.position = new Vector3(cameraHolder.transform.position.x, transform.position.y + 0.1f, cameraHolder.transform.position.z);
+        }
     }
 
     private void SetAnimate()
@@ -109,6 +125,54 @@ public class PigeonController : MonoBehaviour
                     animator.Play("Idle_A");
                 }
             }
+        }
+        
+    }
+
+    private void Fire()
+    {
+        //Debug.DrawRay(cameraHolder.position, direction, Color.red);
+        if (Input.GetMouseButtonDown(0)) {
+            isHookFired = !isHookFired;
+            if (isHookFired) {
+                ShootHook();
+            }
+        }
+
+        if (isHookFired) {
+            // Draw line
+            LineRenderer line = hook.GetComponent<LineRenderer>();
+            Vector3[] positions = new Vector3[] { transform.position, hook.transform.position };
+
+            line.SetPositions(positions);
+        }
+        
+    }
+
+    private void ShootHook()
+    {
+        // Find out where the hook will grab
+        RaycastHit hitInfo;
+
+        Vector3 direction = (aimTarget.position - cameraHolder.position).normalized;
+
+        if (Physics.Raycast(cameraHolder.position, direction, out hitInfo, 50))
+        {
+            Debug.Log("Hit");
+            Vector3 hookPosition = hitInfo.point;
+
+            // Instantiate hook
+            if (!isHookInstantiated)
+            {
+                hook = Instantiate(hookPrefab, hookPosition, Quaternion.identity);
+                isHookInstantiated = true;
+            }
+            else
+            {
+                hook.transform.position = hookPosition;
+            }
+
+            
         }
         
     }
