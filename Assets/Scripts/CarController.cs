@@ -77,4 +77,10 @@ public class CarController : MonoBehaviour
             visualWheel.transform.rotation = rotation;
         }
     }
+
+    // Upon collision with another GameObject, this GameObject will reverse direction
+    void OnCollisionEnter(Collision collision)
+    {
+        transform.Rotate(0, 180, 0);
+    }
 }

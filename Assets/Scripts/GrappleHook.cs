@@ -42,7 +42,7 @@ public class GrappleHook : MonoBehaviour
         if (isHookFired && Input.GetMouseButton(1))
         {
             Vector3 direction = (hook.transform.position - GetGunPosition()).normalized;
-            pigeonController.ApplyForce(direction * grappleForce, true);
+            pigeonController.ApplyForce(direction * grappleForce);
         }
     }
 
@@ -60,15 +60,16 @@ public class GrappleHook : MonoBehaviour
                     hook.SetActive(false);
                 }
             }
-        }
 
-        if (isHookFired) {
-            // Draw line
-            LineRenderer line = hook.GetComponent<LineRenderer>();
-            Vector3[] positions = new Vector3[] { GetGunPosition(), hook.transform.position };
-            
-            line.SetPositions(positions);
+            if (isHookFired) {
+                // Draw line
+                LineRenderer line = hook.GetComponent<LineRenderer>();
+                Vector3[] positions = new Vector3[] { GetGunPosition(), hook.transform.position };
+                
+                line.SetPositions(positions);
+            }
         }
+        
     }
 
     private Vector3 GetGunPosition()

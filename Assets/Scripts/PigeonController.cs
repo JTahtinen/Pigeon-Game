@@ -6,8 +6,12 @@ public class PigeonController : MonoBehaviour
 {
 
     public CharacterController characterController;
-    public float speed = 3;
-    
+    public float walkSpeed = 6;
+    public float runSpeed = 12;
+    public float jumpForce = 200;
+
+    // Haha
+    public float lyft = 0.9f;
 
     public Animator animator;
     
@@ -19,12 +23,12 @@ public class PigeonController : MonoBehaviour
 
     public float cameraDistance = 3;
 
-    public float lyft = 0.9f;
     // gravity
-    private float gravity = 9.81f;
-    private float verticalSpeed = 0;
+    private Vector3 gravity = new Vector3(0, -9.81f, 0);
 
-
+    private Vector3 velocity;
+    private Vector3 acceleration;
+    
 
     private bool isWalking = false;
     private bool isFlying = false;
@@ -41,14 +45,25 @@ public class PigeonController : MonoBehaviour
     void Start()
     {
         aimTarget = Target.transform;
+        CleanUp();
     }
 
     void Update()
     {
+        HandleJumping();
+        HandleFlying();
+        HandleMovement();
+        ApplyGravity();
         Move();
         Rotate();
         MoveCamera();
         SetAnimate();
+        CleanUp();
+    }
+
+    private void CleanUp()
+    {
+        acceleration *= 0;
     }
 
     private void Awake()
@@ -104,12 +119,14 @@ public class PigeonController : MonoBehaviour
             if (isJumping)
             {
                 animator.speed = 1f;
+                animator.Play("Jump");
             }
             else 
             {
                 if (isWalking)
                 {
-                    animator.speed = speed / 1.2f;
+                    float walkSpeed = velocity.magnitude;
+                    animator.speed = walkSpeed / 10;
                     animator.Play("Walk");
                 } else {
                     animator.speed = 0.5f;
@@ -119,70 +136,91 @@ public class PigeonController : MonoBehaviour
         }
     }
 
-    public void ApplyForce(Vector3 force, bool resetGravity)
+    public void ApplyForce(Vector3 force, bool applyDeltaTime = true)
     {
-        if (resetGravity)
-        {
-            verticalSpeed = 0;
-        }
+        acceleration += applyDeltaTime ? force * Time.deltaTime : force;
+    }
 
-        characterController.Move(force * Time.deltaTime);
+    public void ApplyForce(float x, float y, float z, bool applyDeltaTime = true)
+    {
+        ApplyForce(new Vector3(x, y, z), applyDeltaTime);
+    }
+
+    private void HandleJumping()
+    {
+        if (characterController.isGrounded)
+        {
+            isJumping = false;
+            if (Input.GetKey(KeyCode.Space))
+            {
+                ApplyForce(0, jumpForce, 0, false);
+                isJumping = true;
+            }
+        }
+    }
+
+    private void ApplyGravity()
+    {
+        ApplyForce(gravity);
+    }
+
+    private void HandleFlying()
+    {
+        isFlying = false;
+        if (!characterController.isGrounded) 
+        {
+            if (Input.GetKey(KeyCode.Space)) {
+                if (velocity.y < 0)
+                {
+                    ApplyForce(0, lyft * -gravity.y, 0);
+                    isFlying = true;
+                }
+            }
+        }
+    }
+
+    private void HandleMovement()
+    {
+        if (characterController.isGrounded)
+        {
+            float horizontalMove = Input.GetAxis("Horizontal");
+            float verticalMove = Input.GetAxis("Vertical");
+            Vector3 groundMove = XZPlane(aimTarget.forward) * verticalMove + aimTarget.right * horizontalMove;
+            isWalking = verticalMove != 0 || horizontalMove != 0;
+
+            ApplyForce(groundMove * walkSpeed);
+
+            if (isWalking) {
+                // The step size is equal to speed times frame time.
+                float singleStep = 10 * Time.deltaTime;
+
+                // Rotate the forward vector towards the target direction by one step
+                Vector3 newDirection = Vector3.RotateTowards(transform.forward, groundMove, singleStep, 0.0f);
+
+                // Draw a ray pointing at our target in
+                Debug.DrawRay(transform.position, newDirection, Color.red);
+
+                // Calculate a rotation a step closer to the target and applies rotation to this object
+                transform.rotation = Quaternion.LookRotation(newDirection);
+            }
+        }
     }
 
     private void Move()
     {
-        float horizontalMove = Input.GetAxis("Horizontal");
-        float verticalMove = Input.GetAxis("Vertical");
-
-        bool space = Input.GetKey(KeyCode.Space);
-
-        isFlying = false;
-        if (characterController.isGrounded)
+    
+        if (characterController.isGrounded && velocity.y < 0)
         {
-            isJumping = false;
-            verticalSpeed = 0;
-            if (space)
-            {
-                verticalSpeed += 5;
-                isJumping = true;
-                animator.cullingMode = AnimatorCullingMode.CullCompletely;
-                animator.Play("Jump");
-            }
+            ApplyForce(0, -(velocity.y + acceleration.y), 0);
         }
-        else 
-        {
-            float downward = gravity * Time.deltaTime;
-            if (space) {
-                if (verticalSpeed < 0)
-                {
-                    downward -= gravity * lyft * Time.deltaTime;
-                    isFlying = true;
-                }
 
-            }
-            verticalSpeed -= downward;
-            
-        }
-        Vector3 gravityMove = new Vector3(0, verticalSpeed, 0);
+        velocity += acceleration;
         
-        Vector3 move = aimTarget.forward * verticalMove + aimTarget.right * horizontalMove;
-        
-        characterController.Move(speed * Time.deltaTime * move + gravityMove * Time.deltaTime);
-        
-        isWalking = verticalMove != 0 || horizontalMove != 0;
-        
-        if (isWalking) {
-            // The step size is equal to speed times frame time.
-            float singleStep = 10 * Time.deltaTime;
+        characterController.Move(velocity * Time.deltaTime);
+    }
 
-            // Rotate the forward vector towards the target direction by one step
-            Vector3 newDirection = Vector3.RotateTowards(transform.forward, move, singleStep, 0.0f);
-
-            // Draw a ray pointing at our target in
-            Debug.DrawRay(transform.position, newDirection, Color.red);
-
-            // Calculate a rotation a step closer to the target and applies rotation to this object
-            transform.rotation = Quaternion.LookRotation(newDirection);
-        }
+    public Vector3 XZPlane(Vector3 vec)
+    {
+        return new Vector3(vec.x,0,vec.z);
     }
 }
