@@ -17,22 +17,18 @@ public class PigeonController : MonoBehaviour
     public float upLimit = -50;
     public float downLimit = 50;
 
-    public GameObject hookPrefab; 
-    public float grappleMaxDistance = 100;
-    
+    public float cameraDistance = 3;
+
     public float lyft = 0.9f;
     // gravity
     private float gravity = 9.81f;
     private float verticalSpeed = 0;
 
-    private bool isHookInstantiated = false;
 
 
     private bool isWalking = false;
     private bool isFlying = false;
     private bool isJumping = false;
-
-    private bool isHookFired = false;
 
     public GameObject Target;
     private Transform aimTarget;
@@ -40,7 +36,6 @@ public class PigeonController : MonoBehaviour
     private float _aimTargetYaw;
     private float _aimTargetPitch;
 
-    private GameObject hook;
     
     // Start is called before the first frame update
     void Start()
@@ -51,7 +46,6 @@ public class PigeonController : MonoBehaviour
     void Update()
     {
         Move();
-        Fire();
         Rotate();
         MoveCamera();
         SetAnimate();
@@ -75,7 +69,7 @@ public class PigeonController : MonoBehaviour
         _aimTargetPitch = ClampAngle(_aimTargetPitch, upLimit, downLimit);
 
         aimTarget.rotation = Quaternion.Euler(_aimTargetPitch, _aimTargetYaw, 0.0f);
-        aimTarget.position = transform.position + aimTarget.forward * 4;
+        aimTarget.position = transform.position + aimTarget.forward * cameraDistance;
     }
 
     private static float ClampAngle(float lfAngle, float lfMin, float lfMax)
@@ -87,8 +81,7 @@ public class PigeonController : MonoBehaviour
     
     private void MoveCamera() 
     {
-        
-        cameraHolder.transform.SetLocalPositionAndRotation(aimTarget.localPosition - aimTarget.forward * 8 + transform.up * 2, aimTarget.localRotation);
+        cameraHolder.transform.SetLocalPositionAndRotation(aimTarget.localPosition - aimTarget.forward * cameraDistance * 2 + transform.up * 2, aimTarget.localRotation);
         
         cameraHolder.transform.LookAt(aimTarget, Vector3.up);
         
@@ -104,7 +97,6 @@ public class PigeonController : MonoBehaviour
         if (isFlying)
         {
             animator.speed = 1f;
-            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             animator.Play("Fly");
         }
         else
@@ -113,68 +105,28 @@ public class PigeonController : MonoBehaviour
             {
                 animator.speed = 1f;
             }
-            else {
+            else 
+            {
                 if (isWalking)
                 {
                     animator.speed = speed / 1.2f;
-                    animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                     animator.Play("Walk");
                 } else {
                     animator.speed = 0.5f;
-                    animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                     animator.Play("Idle_A");
                 }
             }
         }
-        
     }
 
-    private void Fire()
+    public void ApplyForce(Vector3 force, bool resetGravity)
     {
-        //Debug.DrawRay(cameraHolder.position, direction, Color.red);
-        if (Input.GetMouseButtonDown(0)) {
-            isHookFired = !isHookFired;
-            if (isHookFired) {
-                ShootHook();
-            }
-        }
-
-        if (isHookFired) {
-            // Draw line
-            LineRenderer line = hook.GetComponent<LineRenderer>();
-            Vector3[] positions = new Vector3[] { transform.position, hook.transform.position };
-
-            line.SetPositions(positions);
-        }
-        
-    }
-
-    private void ShootHook()
-    {
-        // Find out where the hook will grab
-        RaycastHit hitInfo;
-
-        Vector3 direction = (aimTarget.position - cameraHolder.position).normalized;
-
-        if (Physics.Raycast(cameraHolder.position, direction, out hitInfo, 50))
+        if (resetGravity)
         {
-            Debug.Log("Hit");
-            Vector3 hookPosition = hitInfo.point;
-
-            // Instantiate hook
-            if (!isHookInstantiated)
-            {
-                hook = Instantiate(hookPrefab, hookPosition, Quaternion.identity);
-                isHookInstantiated = true;
-            }
-            else
-            {
-                hook.transform.position = hookPosition;
-            }
-
-            
+            verticalSpeed = 0;
         }
-        
+
+        characterController.Move(force * Time.deltaTime);
     }
 
     private void Move()
