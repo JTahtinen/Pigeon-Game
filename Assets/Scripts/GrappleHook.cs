@@ -35,6 +35,37 @@ public class GrappleHook : MonoBehaviour
     {
         Fire();
         Grapple();
+        DrawRope();
+        DetectConstraints();
+    }
+
+    private void DetectConstraints()
+    {
+        if (isHookFired)
+        {
+            // Find out if something is cutting the rope
+            RaycastHit hitInfo;
+
+            Vector3 direction = (hook.transform.position - GetGunPosition()).normalized;
+            float length = (GetGunPosition() - hook.transform.position).magnitude;
+
+            if (Physics.Raycast(GetGunPosition(), direction, out hitInfo, length - 0.5f))
+            {
+                isHookFired = false;
+                hook.SetActive(false);
+            }
+        }
+    }
+
+    private void DrawRope()
+    {
+        if (isHookFired) {
+            // Draw line
+            LineRenderer line = hook.GetComponent<LineRenderer>();
+            Vector3[] positions = new Vector3[] { GetGunPosition(), hook.transform.position };
+            
+            line.SetPositions(positions);
+        }
     }
 
     private void Grapple()
@@ -60,16 +91,7 @@ public class GrappleHook : MonoBehaviour
                     hook.SetActive(false);
                 }
             }
-
-            if (isHookFired) {
-                // Draw line
-                LineRenderer line = hook.GetComponent<LineRenderer>();
-                Vector3[] positions = new Vector3[] { GetGunPosition(), hook.transform.position };
-                
-                line.SetPositions(positions);
-            }
         }
-        
     }
 
     private Vector3 GetGunPosition()

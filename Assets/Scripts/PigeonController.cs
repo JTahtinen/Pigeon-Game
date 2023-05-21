@@ -53,20 +53,15 @@ public class PigeonController : MonoBehaviour
     void Update()
     {
         isGrounded = characterController.isGrounded;
-
-        if (isGrounded && velocity.y < 0)
+        if (isGrounded)
         {
-            velocity.y = 0;
+            velocity *= 0;
             isJumping = false;
         }
-
         
         HandleFlying();
         HandleMovement();
         ApplyGravity();
-    
-        Move();
-        
         HandleJumping();
 
         velocity += acceleration;
@@ -169,9 +164,7 @@ public class PigeonController : MonoBehaviour
         {
             if (Input.GetKey(KeyCode.Space) && !isJumping)
             {
-                Debug.Log("Jump!");
                 ApplyForce(0, jumpForce, 0, false);
-                //velocity.y += Mathf.Sqrt(jumpForce * -3.0f * gravity.y);
                 isJumping = true;
                 isGrounded = false;
             }
@@ -205,8 +198,14 @@ public class PigeonController : MonoBehaviour
         Vector3 groundMove = XZPlane(aimTarget.forward) * verticalMove + aimTarget.right * horizontalMove;
         isWalking = verticalMove != 0 || horizontalMove != 0;
 
-        //ApplyForce(groundMove * walkSpeed);
-        characterController.Move(groundMove * walkSpeed * Time.deltaTime);
+        if (isGrounded)
+        {
+            ApplyForce(groundMove * walkSpeed * 70);
+        }
+        else
+        {
+            ApplyForce(groundMove * walkSpeed * 2);
+        }
 
         if (isWalking) {
             // The step size is equal to speed times frame time.
@@ -216,7 +215,7 @@ public class PigeonController : MonoBehaviour
             Vector3 newDirection = Vector3.RotateTowards(transform.forward, groundMove, singleStep, 0.0f);
 
             // Draw a ray pointing at our target in
-            Debug.DrawRay(transform.position, newDirection, Color.red);
+            // Debug.DrawRay(transform.position, newDirection, Color.red);
 
             // Calculate a rotation a step closer to the target and applies rotation to this object
             transform.rotation = Quaternion.LookRotation(newDirection);
