@@ -40,6 +40,8 @@ public class PigeonController : MonoBehaviour
     private float _aimTargetYaw;
     private float _aimTargetPitch;
 
+    private bool isGrounded;
+
     
     // Start is called before the first frame update
     void Start()
@@ -50,11 +52,27 @@ public class PigeonController : MonoBehaviour
 
     void Update()
     {
-        HandleJumping();
+        isGrounded = characterController.isGrounded;
+
+        if (isGrounded && velocity.y < 0)
+        {
+            velocity.y = 0;
+            isJumping = false;
+        }
+
+        
         HandleFlying();
         HandleMovement();
         ApplyGravity();
+    
         Move();
+        
+        HandleJumping();
+
+        velocity += acceleration;
+        
+        characterController.Move(velocity * Time.deltaTime);
+
         Rotate();
         MoveCamera();
         SetAnimate();
@@ -119,14 +137,13 @@ public class PigeonController : MonoBehaviour
             if (isJumping)
             {
                 animator.speed = 1f;
-                animator.Play("Jump");
+                animator.Play("Swim");
             }
             else 
             {
                 if (isWalking)
                 {
-                    float walkSpeed = velocity.magnitude;
-                    animator.speed = walkSpeed / 10;
+                    animator.speed = 1;
                     animator.Play("Walk");
                 } else {
                     animator.speed = 0.5f;
@@ -148,13 +165,15 @@ public class PigeonController : MonoBehaviour
 
     private void HandleJumping()
     {
-        if (characterController.isGrounded)
+        if (isGrounded)
         {
-            isJumping = false;
-            if (Input.GetKey(KeyCode.Space))
+            if (Input.GetKey(KeyCode.Space) && !isJumping)
             {
+                Debug.Log("Jump!");
                 ApplyForce(0, jumpForce, 0, false);
+                //velocity.y += Mathf.Sqrt(jumpForce * -3.0f * gravity.y);
                 isJumping = true;
+                isGrounded = false;
             }
         }
     }
@@ -167,7 +186,7 @@ public class PigeonController : MonoBehaviour
     private void HandleFlying()
     {
         isFlying = false;
-        if (!characterController.isGrounded) 
+        if (!isGrounded) 
         {
             if (Input.GetKey(KeyCode.Space)) {
                 if (velocity.y < 0)
@@ -181,42 +200,32 @@ public class PigeonController : MonoBehaviour
 
     private void HandleMovement()
     {
-        if (characterController.isGrounded)
-        {
-            float horizontalMove = Input.GetAxis("Horizontal");
-            float verticalMove = Input.GetAxis("Vertical");
-            Vector3 groundMove = XZPlane(aimTarget.forward) * verticalMove + aimTarget.right * horizontalMove;
-            isWalking = verticalMove != 0 || horizontalMove != 0;
+        float horizontalMove = Input.GetAxis("Horizontal");
+        float verticalMove = Input.GetAxis("Vertical");
+        Vector3 groundMove = XZPlane(aimTarget.forward) * verticalMove + aimTarget.right * horizontalMove;
+        isWalking = verticalMove != 0 || horizontalMove != 0;
 
-            ApplyForce(groundMove * walkSpeed);
+        //ApplyForce(groundMove * walkSpeed);
+        characterController.Move(groundMove * walkSpeed * Time.deltaTime);
 
-            if (isWalking) {
-                // The step size is equal to speed times frame time.
-                float singleStep = 10 * Time.deltaTime;
+        if (isWalking) {
+            // The step size is equal to speed times frame time.
+            float singleStep = 10 * Time.deltaTime;
 
-                // Rotate the forward vector towards the target direction by one step
-                Vector3 newDirection = Vector3.RotateTowards(transform.forward, groundMove, singleStep, 0.0f);
+            // Rotate the forward vector towards the target direction by one step
+            Vector3 newDirection = Vector3.RotateTowards(transform.forward, groundMove, singleStep, 0.0f);
 
-                // Draw a ray pointing at our target in
-                Debug.DrawRay(transform.position, newDirection, Color.red);
+            // Draw a ray pointing at our target in
+            Debug.DrawRay(transform.position, newDirection, Color.red);
 
-                // Calculate a rotation a step closer to the target and applies rotation to this object
-                transform.rotation = Quaternion.LookRotation(newDirection);
-            }
+            // Calculate a rotation a step closer to the target and applies rotation to this object
+            transform.rotation = Quaternion.LookRotation(newDirection);
         }
     }
 
     private void Move()
     {
-    
-        if (characterController.isGrounded && velocity.y < 0)
-        {
-            ApplyForce(0, -(velocity.y + acceleration.y), 0);
-        }
-
-        velocity += acceleration;
         
-        characterController.Move(velocity * Time.deltaTime);
     }
 
     public Vector3 XZPlane(Vector3 vec)
