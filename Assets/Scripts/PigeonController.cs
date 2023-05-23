@@ -74,6 +74,23 @@ public class PigeonController : MonoBehaviour
         CleanUp();
     }
 
+    void FixedUpdate()
+    {
+        RaycastHit hitInfo;
+
+        Vector3 direction = Vector3.down;
+        float length = 5;
+
+        if (Physics.Raycast(transform.position, direction, out hitInfo, length))
+        {
+            if (hitInfo.collider.gameObject.name.Contains("Car"))
+            {
+                Vector3 velocity = hitInfo.collider.gameObject.GetComponentInParent<Rigidbody>().velocity;
+                characterController.Move(velocity * Time.deltaTime);
+            }
+        }
+    }
+
     private void CleanUp()
     {
         acceleration *= 0;
@@ -198,14 +215,16 @@ public class PigeonController : MonoBehaviour
         Vector3 groundMove = XZPlane(aimTarget.forward) * verticalMove + aimTarget.right * horizontalMove;
         isWalking = verticalMove != 0 || horizontalMove != 0;
 
-        if (isGrounded)
+        /*if (isGrounded)
         {
             ApplyForce(groundMove * walkSpeed * 70);
         }
         else
         {
             ApplyForce(groundMove * walkSpeed * 2);
-        }
+        }*/
+        characterController.Move(groundMove * walkSpeed * Time.deltaTime);
+
 
         if (isWalking) {
             // The step size is equal to speed times frame time.
