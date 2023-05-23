@@ -693,6 +693,24 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0.43, z: 0}
+--- !u!114 &170230737
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 170230727}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e110bf65e2ad480b92520a32ad71af9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Target: {fileID: 1474231167}
+  cameraHolder: {fileID: 963194228}
+  hookPrefab: {fileID: 4489125117757683327, guid: 39e31e4722c5149798f3013707ccb915, type: 3}
+  pigeonController: {fileID: 170230733}
+  grappleForce: 5
+  grappleMaxDistance: 100
 --- !u!1001 &176704883
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -763,6 +781,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3319330840629498002, guid: bcfec05f2f2a33246a92bb0b9547bb6f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 170230734}
+    - targetCorrespondingSourceObject: {fileID: 3319330840629498002, guid: bcfec05f2f2a33246a92bb0b9547bb6f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 170230737}
   m_SourcePrefab: {fileID: 100100000, guid: bcfec05f2f2a33246a92bb0b9547bb6f, type: 3}
 --- !u!1 &179946127
 GameObject:

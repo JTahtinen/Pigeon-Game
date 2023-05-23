@@ -34,9 +34,28 @@ public class GrappleHook : MonoBehaviour
     void Update()
     {
         Fire();
-        Grapple();
         DrawRope();
         DetectConstraints();
+    }
+
+    void FixedUpdate()
+    {
+        Grapple();
+        
+        if (isHookFired)
+        {
+            // Kinetic energy
+            Vector3 kineticEnergy = pigeonController.GetVelocity() / Time.deltaTime;
+
+            // The direction from which the rope is pulling
+            Vector3 direction = Vector3.Normalize(hook.transform.position - GetGunPosition());
+            
+            // Calculate the force caused be grabbing and hanging from the rope
+            Vector3 force = direction * 18f;
+            if (force.y > 9.81f) force.y = 9.81f;
+            
+            pigeonController.ApplyForce(force);
+        }
     }
 
     private void DetectConstraints()
@@ -72,8 +91,9 @@ public class GrappleHook : MonoBehaviour
     {
         if (isHookFired && Input.GetMouseButton(1))
         {
-            Vector3 direction = (hook.transform.position - GetGunPosition()).normalized;
-            pigeonController.ApplyForce(direction * grappleForce);
+            Vector3 direction = Vector3.Normalize(hook.transform.position - GetGunPosition());
+            
+            pigeonController.Move(direction * grappleForce);
         }
     }
 

@@ -28,6 +28,7 @@ public class PigeonController : MonoBehaviour
 
     private Vector3 velocity;
     private Vector3 acceleration;
+    private Vector3 absoluteMovement;
     
 
     private bool isWalking = false;
@@ -52,13 +53,13 @@ public class PigeonController : MonoBehaviour
 
     void Update()
     {
-        isGrounded = characterController.isGrounded;
-        if (isGrounded)
-        {
-            velocity *= 0;
-            isJumping = false;
-        }
-        
+        Rotate();
+        MoveCamera();
+        SetAnimate();
+    }
+
+    void FixedUpdate()
+    {
         HandleFlying();
         HandleMovement();
         ApplyGravity();
@@ -66,34 +67,35 @@ public class PigeonController : MonoBehaviour
 
         velocity += acceleration;
         
-        characterController.Move(velocity * Time.deltaTime);
+        characterController.Move((velocity + absoluteMovement) * Time.deltaTime);
 
-        Rotate();
-        MoveCamera();
-        SetAnimate();
+        // Use a more reliable ground check
+        isGrounded = false;
+        if (Physics.Raycast(transform.position + characterController.center, Vector3.down, out RaycastHit hitInfo, characterController.height / 2 + 0.1f))
+        {
+            isGrounded = true;
+            velocity *= 0;
+            isJumping = false;
+   
+            if (hitInfo.collider.gameObject.name.Contains("Car"))
+            {
+                Vector3 carVelocity = hitInfo.collider.gameObject.GetComponentInParent<Rigidbody>().velocity;
+                velocity = carVelocity;
+            }
+        }
+
         CleanUp();
     }
 
-    void FixedUpdate()
+    public void Move(Vector3 movement)
     {
-        RaycastHit hitInfo;
-
-        Vector3 direction = Vector3.down;
-        float length = 5;
-
-        if (Physics.Raycast(transform.position, direction, out hitInfo, length))
-        {
-            if (hitInfo.collider.gameObject.name.Contains("Car"))
-            {
-                Vector3 velocity = hitInfo.collider.gameObject.GetComponentInParent<Rigidbody>().velocity;
-                characterController.Move(velocity * Time.deltaTime);
-            }
-        }
+        absoluteMovement += movement;
     }
 
     private void CleanUp()
     {
         acceleration *= 0;
+        absoluteMovement *= 0;
     }
 
     private void Awake()
@@ -123,7 +125,7 @@ public class PigeonController : MonoBehaviour
         if (lfAngle > 360f) lfAngle -= 360f;
         return Mathf.Clamp(lfAngle, lfMin, lfMax);
     }
-    
+
     private void MoveCamera() 
     {
         cameraHolder.transform.SetLocalPositionAndRotation(aimTarget.localPosition - aimTarget.forward * cameraDistance * 2 + transform.up * 2, aimTarget.localRotation);
@@ -175,6 +177,11 @@ public class PigeonController : MonoBehaviour
         ApplyForce(new Vector3(x, y, z), applyDeltaTime);
     }
 
+    public Vector3 GetVelocity()
+    {
+        return velocity;
+    }
+    
     private void HandleJumping()
     {
         if (isGrounded)
@@ -212,26 +219,17 @@ public class PigeonController : MonoBehaviour
     {
         float horizontalMove = Input.GetAxis("Horizontal");
         float verticalMove = Input.GetAxis("Vertical");
-        Vector3 groundMove = XZPlane(aimTarget.forward) * verticalMove + aimTarget.right * horizontalMove;
         isWalking = verticalMove != 0 || horizontalMove != 0;
-
-        /*if (isGrounded)
-        {
-            ApplyForce(groundMove * walkSpeed * 70);
-        }
-        else
-        {
-            ApplyForce(groundMove * walkSpeed * 2);
-        }*/
-        characterController.Move(groundMove * walkSpeed * Time.deltaTime);
-
+        Vector3 groundMove = (XZPlane(aimTarget.forward) * verticalMove + aimTarget.right * horizontalMove) * walkSpeed;
+        
+        Move(groundMove);
 
         if (isWalking) {
             // The step size is equal to speed times frame time.
             float singleStep = 10 * Time.deltaTime;
 
             // Rotate the forward vector towards the target direction by one step
-            Vector3 newDirection = Vector3.RotateTowards(transform.forward, groundMove, singleStep, 0.0f);
+            Vector3 newDirection = Vector3.RotateTowards(transform.forward, absoluteMovement, singleStep, 0.0f);
 
             // Draw a ray pointing at our target in
             // Debug.DrawRay(transform.position, newDirection, Color.red);
