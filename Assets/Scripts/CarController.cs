@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class CarController : MonoBehaviour
 {
-    private float speed = 0;
     public float maxSpeed = 3;
     public float acceleration = 1;
     private bool moving = false;
@@ -60,14 +59,9 @@ public class CarController : MonoBehaviour
         }
 
         float carVelocity = this.GetComponent<Rigidbody>().velocity.magnitude;
+
         if (moving)
         {
-            speed += acceleration * Time.deltaTime;
-            if (speed > maxSpeed)
-            {
-                speed = maxSpeed;
-            }
-            
             if (Waypoints.Length > 0)
             {
                 TurnTowardsWaypoint();
@@ -79,21 +73,29 @@ public class CarController : MonoBehaviour
                     
                     // Move towards the waypoint
                     if (carVelocity < maxSpeed) { 
-                        //Debug.Log("Distance: " + distance + " Velocity: " + carVelocity + " - Accelerating");
                         ApplyTorque();
+                    }
+                    else
+                    {
+                        ReleaseTorque();
                     }
                 }
                 else if (distance > 2)
                 {
                     // Slow down
-                    //ApplyTorque();
                     if (carVelocity > 3)
                     {
                         ApplyBrakes();
-                        //Debug.Log("Distance: " + distance + " Velocity: " + carVelocity + " - Slowing down");
                     }
                         
-                    else ApplyTorque();
+                    else if (carVelocity < 2)
+                    {
+                        ApplyTorque();
+                    }
+                    else
+                    {
+                        ReleaseTorque();
+                    }
                 }
                 else
                 {
@@ -112,32 +114,15 @@ public class CarController : MonoBehaviour
             }
         }
 
-        
         TurnWheels();
-
-        //DetectIntersection();
     }
-
-    /*private void DetectIntersection()
-    {
-        foreach (GameObject wheel in wheels)
-        {
-            WheelCollider wheelCollider = wheel.GetComponent<WheelCollider>();
-            if (wheelCollider.GetGroundHit(out WheelHit hit)) {
-                if (hit.collider.gameObject.CompareTag("Intersection")) {
-                    hit.collider.
-                    TurnCar();
-                };
-            }
-        }
-    }*/
 
     private void TurnTowardsWaypoint()
     {
         Vector3 relativePos = Waypoints[currentWayPoint].transform.position - transform.position;
         float angle = Vector3.SignedAngle(relativePos, transform.forward, transform.up);
 
-        if (Mathf.Abs(-steering - angle) < 2)
+        if (Mathf.Abs(-steering - angle) < 10)
         {
             steering = -angle;
         }
@@ -149,8 +134,8 @@ public class CarController : MonoBehaviour
                 steering -= 30 * Time.deltaTime;
         }
             
-        if (steering > 30) steering = 30;
-        if (steering < -30) steering = -30;
+        if (steering > 35) steering = 35;
+        if (steering < -35) steering = -35;
         foreach (GameObject wheel in frontWheels)
         {
             WheelCollider wheelCollider = wheel.GetComponent<WheelCollider>();
@@ -163,7 +148,17 @@ public class CarController : MonoBehaviour
         foreach (GameObject wheel in frontWheels)
         {
             WheelCollider wheelCollider = wheel.GetComponent<WheelCollider>();
-            wheelCollider.motorTorque = speed * 200;
+            wheelCollider.motorTorque = 1000;
+            wheelCollider.brakeTorque = 0;
+        }
+    }
+
+    private void ReleaseTorque()
+    {
+        foreach (GameObject wheel in frontWheels)
+        {
+            WheelCollider wheelCollider = wheel.GetComponent<WheelCollider>();
+            wheelCollider.motorTorque = 0;
             wheelCollider.brakeTorque = 0;
         }
     }
@@ -173,7 +168,7 @@ public class CarController : MonoBehaviour
         foreach (GameObject wheel in frontWheels)
         {
             WheelCollider wheelCollider = wheel.GetComponent<WheelCollider>();
-            wheelCollider.brakeTorque = 2;
+            wheelCollider.brakeTorque = 0.5f;
             wheelCollider.motorTorque = 0;
         }
     }
