@@ -44,15 +44,23 @@ public class GrappleHook : MonoBehaviour
         
         if (isHookFired)
         {
-            // Kinetic energy
-            Vector3 kineticEnergy = pigeonController.GetVelocity() / Time.deltaTime;
-
-            // The direction from which the rope is pulling
+            // Calculate the tension of the rope to make the pigeon swing :)
             Vector3 direction = Vector3.Normalize(hook.transform.position - GetGunPosition());
+            float length = Vector3.Magnitude(GetGunPosition() - hook.transform.position);
+            float angle = Vector3.Angle(direction, Vector3.up);
+            Vector3 velocity = pigeonController.GetVelocity(); 
             
-            // Calculate the force caused be grabbing and hanging from the rope
-            Vector3 force = direction * 18f;
-            if (force.y > 9.81f) force.y = 9.81f;
+            // Calculate tension caused by gravity
+            float tension = 9.81f * Mathf.Cos(angle * Mathf.Deg2Rad);
+
+            // Calculate the centripetal force
+            float centripetal = velocity.magnitude * velocity.magnitude / length;
+            Vector3 force = direction * (tension + centripetal);
+
+            if (force.magnitude > 20) {
+                // Precausion to prevent weird situations / bugs
+                force = force.normalized * 20;
+            }
             
             pigeonController.ApplyForce(force);
         }
