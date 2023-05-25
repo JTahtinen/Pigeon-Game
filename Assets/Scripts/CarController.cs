@@ -18,6 +18,10 @@ public class CarController : MonoBehaviour
     private List<GameObject> rearWheels;
     private List<GameObject> allWheels;
 
+    private GameObject[] spawnPoints;
+
+    bool waitingForSpawn = false;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -43,6 +47,8 @@ public class CarController : MonoBehaviour
                 allWheels.Add(child.gameObject);
             }
         }
+
+        spawnPoints = GameObject.FindGameObjectsWithTag("Respawn");
     }
 
     public void StartMoving()
@@ -58,7 +64,8 @@ public class CarController : MonoBehaviour
             StartMoving();
         }
 
-        float carVelocity = this.GetComponent<Rigidbody>().velocity.magnitude;
+        Rigidbody rigidbody = this.GetComponent<Rigidbody>();
+        float carVelocity = rigidbody.velocity.magnitude;
 
         if (moving)
         {
@@ -110,11 +117,46 @@ public class CarController : MonoBehaviour
             else
             {
                 // Just go forward
-                ApplyTorque();
+                if (carVelocity < maxSpeed * 2) { 
+                    ApplyTorque();
+                }
+                else
+                {
+                    ReleaseTorque();
+                }
             }
         }
 
         TurnWheels();
+
+        if (waitingForSpawn)
+        {
+            GameObject spawnPoint = null;
+            int retries = 0;
+            while (spawnPoint == null)
+            {
+                int spawnIndex = Random.Range (0, spawnPoints.Length);
+                spawnPoint = spawnPoints[spawnIndex];
+                if (spawnPoint.GetComponent<CarSensor>().isOccupied)
+                {
+                    spawnPoint = null;
+                }
+                retries++;
+                if (retries > 30)
+                {
+                    Debug.Log("No free spawn point found!!!");
+                    break;
+                }
+            }
+            if (spawnPoint != null)
+            {
+                Quaternion rotation = spawnPoint.transform.parent.rotation * Quaternion.Euler(0,180,0);
+                transform.position = spawnPoint.transform.position;
+                transform.rotation = rotation;
+                rigidbody.velocity = transform.forward * carVelocity;
+                waitingForSpawn = false;
+            }
+        }
     }
 
     private void TurnTowardsWaypoint()
@@ -192,8 +234,11 @@ public class CarController : MonoBehaviour
     }
 
     // Upon collision with another GameObject, this GameObject will reverse direction
-    /*void OnCollisionEnter(Collision collision)
+    void OnTriggerEnter(Collider collider)
     {
-        transform.Rotate(0, 180, 0);
-    }*/
+        if (collider.gameObject.CompareTag("Finish"))
+        {
+            waitingForSpawn = true;
+        }
+    }
 }
