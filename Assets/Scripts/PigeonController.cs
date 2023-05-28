@@ -31,6 +31,7 @@ public class PigeonController : MonoBehaviour
     private Vector3 absoluteMovement;
     
 
+    private bool rKeyPressed = false;
     private bool isWalking = false;
     private bool isFlying = false;
     private bool isJumping = false;
@@ -42,6 +43,9 @@ public class PigeonController : MonoBehaviour
     private float _aimTargetPitch;
 
     private bool isGrounded;
+
+    private CarController controlledCar;
+    private bool controllingCar = false;
 
     
     // Start is called before the first frame update
@@ -60,31 +64,86 @@ public class PigeonController : MonoBehaviour
 
     void FixedUpdate()
     {
-        HandleFlying();
-        HandleMovement();
-        ApplyGravity();
-        HandleJumping();
-
-        velocity += acceleration;
-        
-        characterController.Move((velocity + absoluteMovement) * Time.deltaTime);
-
-        // Use a more reliable ground check
-        isGrounded = false;
-        if (Physics.Raycast(transform.position + characterController.center, Vector3.down, out RaycastHit hitInfo, characterController.height / 2 + 0.1f))
+        if (controllingCar)
         {
-            isGrounded = true;
-            velocity *= 0;
-            isJumping = false;
-   
-            if (hitInfo.collider.gameObject.name.Contains("Car"))
+            FollowCar();
+
+            if (!rKeyPressed && Input.GetKey(KeyCode.R))
             {
-                Vector3 carVelocity = hitInfo.collider.gameObject.GetComponentInParent<Rigidbody>().velocity;
-                velocity = carVelocity;
+                rKeyPressed = true;
+                controlledCar.ReleaseControl();
+                controllingCar = false;
+                characterController.detectCollisions = true;
+            }
+        }
+        else
+        {
+            HandleFlying();
+            HandleMovement();
+            ApplyGravity();
+            HandleJumping();
+
+            velocity += acceleration;
+            
+            characterController.Move((velocity + absoluteMovement) * Time.deltaTime);
+
+            // Use a more reliable ground check
+            isGrounded = false;
+            if (Physics.Raycast(transform.position + characterController.center, Vector3.down, out RaycastHit hitInfo, characterController.height / 2 + 0.1f))
+            {
+                isGrounded = true;
+                velocity *= 0;
+                isJumping = false;
+    
+                CheckCarCollision(hitInfo);
             }
         }
 
+        if (!Input.GetKey(KeyCode.R))
+        {
+            rKeyPressed = false;
+        }
+        
         CleanUp();
+    }
+
+    private void FollowCar()
+    {
+        Vector3 carVelocity = controlledCar.GetComponentInParent<Rigidbody>().velocity;
+        velocity = carVelocity;
+
+        //characterController.SimpleMove(velocity * Time.deltaTime);
+        gameObject.transform.position += velocity * Time.deltaTime;
+    }
+
+    private void CheckCarCollision(RaycastHit hitInfo)
+    {
+        if (hitInfo.collider.gameObject.name.Contains("Car"))
+        {
+            Vector3 carVelocity = hitInfo.collider.gameObject.GetComponentInParent<Rigidbody>().velocity;
+            velocity = carVelocity;
+
+            if (!rKeyPressed && Input.GetKey(KeyCode.R))
+            {
+                Debug.Log("Taking control of car");
+                controlledCar = hitInfo.collider.gameObject.GetComponentInParent<CarController>();
+                if (controlledCar != null)
+                {
+                    rKeyPressed = true;
+                    controlledCar.TakeControl();
+                    characterController.detectCollisions = false;
+                    transform.position = controlledCar.gameObject.transform.position;
+                    controllingCar = true;
+                    isJumping = false;
+                    isWalking = false;
+                    isFlying = false;
+                }
+                else
+                {
+                    Debug.Log("CarController not found");
+                }
+            }
+        }
     }
 
     public void Move(Vector3 movement)

@@ -5,8 +5,8 @@ using UnityEngine;
 public class CarController : MonoBehaviour
 {
     public float maxSpeed = 3;
-    public float acceleration = 1;
     private bool moving = false;
+    private bool playerControlled = false;
 
     private float steering = 0;
 
@@ -20,11 +20,16 @@ public class CarController : MonoBehaviour
 
     private GameObject[] spawnPoints;
 
-    bool waitingForSpawn = false;
+    private bool waitingForSpawn = false;
+
+    private Rigidbody rigidbody;
+
 
     // Start is called before the first frame update
     void Start()
     {
+        rigidbody = this.GetComponent<Rigidbody>();
+
         frontWheels = new List<GameObject>();
         rearWheels = new List<GameObject>();
         allWheels = new List<GameObject>();
@@ -51,6 +56,18 @@ public class CarController : MonoBehaviour
         spawnPoints = GameObject.FindGameObjectsWithTag("Respawn");
     }
 
+    public void TakeControl()
+    {
+        playerControlled = true;
+        moving = false;
+    }
+
+    public void ReleaseControl()
+    {
+        playerControlled = false;
+        moving = true;
+    }
+
     public void StartMoving()
     {
         moving = true;
@@ -64,59 +81,16 @@ public class CarController : MonoBehaviour
             StartMoving();
         }
 
-        Rigidbody rigidbody = this.GetComponent<Rigidbody>();
-        float carVelocity = rigidbody.velocity.magnitude;
-
         if (moving)
         {
             if (Waypoints.Length > 0)
             {
-                TurnTowardsWaypoint();
-
-                // Follow waypoints
-                float distance = Vector3.Distance(Waypoints[currentWayPoint].transform.position, this.transform.position);
-                if (distance > 8)
-                {
-                    
-                    // Move towards the waypoint
-                    if (carVelocity < maxSpeed) { 
-                        ApplyTorque();
-                    }
-                    else
-                    {
-                        ReleaseTorque();
-                    }
-                }
-                else if (distance > 2)
-                {
-                    // Slow down
-                    if (carVelocity > 3)
-                    {
-                        ApplyBrakes();
-                    }
-                        
-                    else if (carVelocity < 2)
-                    {
-                        ApplyTorque();
-                    }
-                    else
-                    {
-                        ReleaseTorque();
-                    }
-                }
-                else
-                {
-                    // Start going towards next waypoint
-                    currentWayPoint++;
-                    if (Waypoints.Length == currentWayPoint)
-                    {
-                        currentWayPoint = 0;
-                    }
-                }
+                FollowWaypoints();
             }
             else
             {
-                // Just go forward
+                // No waypoints. Just go forward
+                float carVelocity = rigidbody.velocity.magnitude;
                 if (carVelocity < maxSpeed * 2) { 
                     ApplyTorque();
                 }
@@ -125,36 +99,135 @@ public class CarController : MonoBehaviour
                     ReleaseTorque();
                 }
             }
+            Steer();
+        }
+
+        if (playerControlled)
+        {
+            float turning = Input.GetAxis("Horizontal");
+            float acceleration = Input.GetAxis("Vertical");
+
+            if (acceleration >= 0)
+            {
+                ApplyTorque(acceleration);
+            }
+            else
+            {
+                Vector3 carVelocity = GetComponent<Rigidbody>().velocity;
+                if (carVelocity.magnitude > 0.5f)
+                {
+                    ApplyBrakes(acceleration);
+                }
+                else
+                {
+                    ApplyTorque(acceleration);
+                }
+                
+            }
+
+            if (turning == 0)
+            {
+                if (steering > 1)
+                {
+                    turning = -1;
+                }
+                else if (steering < 1)
+                {
+                    turning = 1;
+                }
+                else
+                {
+                    steering = 0;
+                    turning = 0;
+                }
+            }
+            
+            steering += turning * 100 * Time.deltaTime;
+
+            Steer();
         }
 
         TurnWheels();
 
         if (waitingForSpawn)
         {
-            GameObject spawnPoint = null;
-            int retries = 0;
-            while (spawnPoint == null)
+            TryToSpawnCar();
+        }
+    }
+
+    private void TryToSpawnCar()
+    {
+        GameObject spawnPoint = null;
+        int retries = 0;
+        while (spawnPoint == null)
+        {
+            int spawnIndex = Random.Range (0, spawnPoints.Length);
+            spawnPoint = spawnPoints[spawnIndex];
+            if (spawnPoint.GetComponent<CarSensor>().isOccupied)
             {
-                int spawnIndex = Random.Range (0, spawnPoints.Length);
-                spawnPoint = spawnPoints[spawnIndex];
-                if (spawnPoint.GetComponent<CarSensor>().isOccupied)
-                {
-                    spawnPoint = null;
-                }
-                retries++;
-                if (retries > 30)
-                {
-                    Debug.Log("No free spawn point found!!!");
-                    break;
-                }
+                spawnPoint = null;
             }
-            if (spawnPoint != null)
+            retries++;
+            if (retries > 30)
             {
-                Quaternion rotation = spawnPoint.transform.parent.rotation * Quaternion.Euler(0,180,0);
-                transform.position = spawnPoint.transform.position;
-                transform.rotation = rotation;
-                rigidbody.velocity = transform.forward * carVelocity;
-                waitingForSpawn = false;
+                Debug.Log("No free spawn point found!!!");
+                break;
+            }
+        }
+        if (spawnPoint != null)
+        {
+            float carVelocity = rigidbody.velocity.magnitude;
+            Quaternion rotation = spawnPoint.transform.parent.rotation * Quaternion.Euler(0,180,0);
+            transform.position = spawnPoint.transform.position;
+            transform.rotation = rotation;
+            rigidbody.velocity = transform.forward * carVelocity;
+            waitingForSpawn = false;
+        }
+    }
+
+    private void FollowWaypoints()
+    {
+        float carVelocity = rigidbody.velocity.magnitude;
+        TurnTowardsWaypoint();
+
+        // Follow waypoints
+        float distance = Vector3.Distance(Waypoints[currentWayPoint].transform.position, this.transform.position);
+        if (distance > 8)
+        {
+            
+            // Move towards the waypoint
+            if (carVelocity < maxSpeed) { 
+                ApplyTorque();
+            }
+            else
+            {
+                ReleaseTorque();
+            }
+        }
+        else if (distance > 2)
+        {
+            // Slow down
+            if (carVelocity > 3)
+            {
+                ApplyBrakes();
+            }
+                
+            else if (carVelocity < 2)
+            {
+                ApplyTorque();
+            }
+            else
+            {
+                ReleaseTorque();
+            }
+        }
+        else
+        {
+            // Start going towards next waypoint
+            currentWayPoint++;
+            if (Waypoints.Length == currentWayPoint)
+            {
+                currentWayPoint = 0;
             }
         }
     }
@@ -175,9 +248,14 @@ public class CarController : MonoBehaviour
             else
                 steering -= 30 * Time.deltaTime;
         }
-            
-        if (steering > 35) steering = 35;
-        if (steering < -35) steering = -35;
+    }
+
+    private void Steer()
+    {
+        float carVelocity = rigidbody.velocity.magnitude;
+        float turnMultiplier = 1 + carVelocity / 3;
+        if (steering > 50 / turnMultiplier) steering = 50 / turnMultiplier;
+        if (steering < -50 / turnMultiplier) steering = -50 / turnMultiplier;
         foreach (GameObject wheel in frontWheels)
         {
             WheelCollider wheelCollider = wheel.GetComponent<WheelCollider>();
@@ -185,12 +263,12 @@ public class CarController : MonoBehaviour
         }
     }
 
-    private void ApplyTorque()
+    private void ApplyTorque(float torque = 1)
     {
         foreach (GameObject wheel in frontWheels)
         {
             WheelCollider wheelCollider = wheel.GetComponent<WheelCollider>();
-            wheelCollider.motorTorque = 1000;
+            wheelCollider.motorTorque = 1000 * torque;
             wheelCollider.brakeTorque = 0;
         }
     }
@@ -205,12 +283,12 @@ public class CarController : MonoBehaviour
         }
     }
 
-    private void ApplyBrakes()
+    private void ApplyBrakes(float torque = -0.5f )
     {
         foreach (GameObject wheel in frontWheels)
         {
             WheelCollider wheelCollider = wheel.GetComponent<WheelCollider>();
-            wheelCollider.brakeTorque = 0.5f;
+            wheelCollider.brakeTorque = -torque;
             wheelCollider.motorTorque = 0;
         }
     }
